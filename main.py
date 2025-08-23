@@ -31,6 +31,7 @@ class DatasetConfig:
     checkpoint_interval: int = 10000
     model_name: str = "llama3.1"
     ollama_url: str = "http://localhost:11434"
+    language: str = "es"  # "es" para español, "en" para inglés, "mixed" para ambos
 
 class OllamaClient:
     """Cliente para interactuar con Ollama"""
@@ -83,113 +84,219 @@ class DatasetPrompts:
     """Plantillas de prompts para diferentes tipos de datasets"""
     
     @staticmethod
-    def get_story_prompt() -> str:
-        genres = ["ciencia ficción", "fantasía", "misterio", "romance", "terror", "aventura", "drama"]
-        settings = ["futuro", "pasado medieval", "ciudad moderna", "espacio", "bosque encantado", "laboratorio"]
-        
-        genre = random.choice(genres)
-        setting = random.choice(settings)
-        
-        return f"""Escribe un cuento completo de {genre} ambientado en {setting}. 
+    def get_story_prompt(language: str = "es") -> str:
+        if language == "en":
+            genres = ["science fiction", "fantasy", "mystery", "romance", "horror", "adventure", "drama"]
+            settings = ["future", "medieval past", "modern city", "space", "enchanted forest", "laboratory"]
+            
+            genre = random.choice(genres)
+            setting = random.choice(settings)
+            
+            return f"""Write a complete {genre} story set in {setting}. 
+The story should be 300-500 words long, with beginning, development and ending.
+Only respond with the story text, no JSON format or additional tags."""
+        else:
+            genres = ["ciencia ficción", "fantasía", "misterio", "romance", "terror", "aventura", "drama"]
+            settings = ["futuro", "pasado medieval", "ciudad moderna", "espacio", "bosque encantado", "laboratorio"]
+            
+            genre = random.choice(genres)
+            setting = random.choice(settings)
+            
+            return f"""Escribe un cuento completo de {genre} ambientado en {setting}. 
 El cuento debe tener entre 300-500 palabras, con inicio, desarrollo y final.
 Solo responde con el texto del cuento, sin formato JSON ni etiquetas adicionales."""
 
     @staticmethod
-    def get_instruction_prompt() -> str:
-        tasks = [
-            "explicar cómo cocinar pasta carbonara",
-            "enseñar a configurar un router wifi",
-            "mostrar cómo plantar un jardín",
-            "explicar el teorema de Pitágoras",
-            "enseñar a escribir un CV profesional",
-            "mostrar cómo cambiar una llanta",
-            "explicar cómo funciona la fotosíntesis",
-            "enseñar a hacer origami básico"
-        ]
-        
-        task = random.choice(tasks)
-        
-        return f"""Crea una instrucción completa para {task}.
+    def get_instruction_prompt(language: str = "es") -> str:
+        if language == "en":
+            tasks = [
+                "explain how to cook pasta carbonara",
+                "teach how to configure a wifi router",
+                "show how to plant a garden",
+                "explain the Pythagorean theorem",
+                "teach how to write a professional CV",
+                "show how to change a tire",
+                "explain how photosynthesis works",
+                "teach basic origami"
+            ]
+            
+            task = random.choice(tasks)
+            
+            return f"""Create a complete instruction to {task}.
+Include an introduction, detailed numbered steps, useful tips and a conclusion.
+The text should be clear, educational and at least 200 words long.
+Only respond with the instructional text, no JSON format or additional tags."""
+        else:
+            tasks = [
+                "explicar cómo cocinar pasta carbonara",
+                "enseñar a configurar un router wifi",
+                "mostrar cómo plantar un jardín",
+                "explicar el teorema de Pitágoras",
+                "enseñar a escribir un CV profesional",
+                "mostrar cómo cambiar una llanta",
+                "explicar cómo funciona la fotosíntesis",
+                "enseñar a hacer origami básico"
+            ]
+            
+            task = random.choice(tasks)
+            
+            return f"""Crea una instrucción completa para {task}.
 Incluye una introducción, pasos detallados numerados, consejos útiles y una conclusión.
 El texto debe ser claro, educativo y de al menos 200 palabras.
 Solo responde con el texto instructivo, sin formato JSON ni etiquetas adicionales."""
 
     @staticmethod
-    def get_dialogue_prompt() -> str:
-        scenarios = [
-            "una entrevista de trabajo",
-            "una discusión entre amigos sobre planes de viaje",
-            "una consulta médica",
-            "una negociación comercial",
-            "una clase entre profesor y estudiante",
-            "una conversación familiar en la cena"
-        ]
-        
-        scenario = random.choice(scenarios)
-        
-        return f"""Escribe un diálogo natural para {scenario}.
+    def get_dialogue_prompt(language: str = "es") -> str:
+        if language == "en":
+            scenarios = [
+                "a job interview",
+                "a discussion between friends about travel plans",
+                "a medical consultation",
+                "a business negotiation",
+                "a class between teacher and student",
+                "a family conversation at dinner"
+            ]
+            
+            scenario = random.choice(scenarios)
+            
+            return f"""Write a natural dialogue for {scenario}.
+The dialogue should have at least 8-10 exchanges, be realistic and show different personalities.
+Include brief action descriptions between dialogue lines.
+Only respond with the complete dialogue, no JSON format or additional tags."""
+        else:
+            scenarios = [
+                "una entrevista de trabajo",
+                "una discusión entre amigos sobre planes de viaje",
+                "una consulta médica",
+                "una negociación comercial",
+                "una clase entre profesor y estudiante",
+                "una conversación familiar en la cena"
+            ]
+            
+            scenario = random.choice(scenarios)
+            
+            return f"""Escribe un diálogo natural para {scenario}.
 El diálogo debe tener al menos 8-10 intercambios, ser realista y mostrar personalidades diferentes.
 Incluye descripciones breves de acciones entre las líneas de diálogo.
 Solo responde with el diálogo completo, sin formato JSON ni etiquetas adicionales."""
 
     @staticmethod
-    def get_article_prompt() -> str:
-        topics = [
-            "los beneficios de la energía solar",
-            "la importancia de la biodiversidad",
-            "cómo la inteligencia artificial está cambiando el trabajo",
-            "la historia del chocolate",
-            "los efectos del cambio climático en los océanos",
-            "la psicología del color en el marketing",
-            "la evolución de los videojuegos",
-            "los misterios del espacio profundo"
-        ]
-        
-        topic = random.choice(topics)
-        
-        return f"""Escribe un artículo informativo sobre {topic}.
+    def get_article_prompt(language: str = "es") -> str:
+        if language == "en":
+            topics = [
+                "the benefits of solar energy",
+                "the importance of biodiversity",
+                "how artificial intelligence is changing work",
+                "the history of chocolate",
+                "the effects of climate change on oceans",
+                "the psychology of color in marketing",
+                "the evolution of video games",
+                "the mysteries of deep space"
+            ]
+            
+            topic = random.choice(topics)
+            
+            return f"""Write an informative article about {topic}.
+The article should be 400-600 words long, with title, introduction, development with subtopics and conclusion.
+Use an educational but accessible tone for the general public.
+Only respond with the complete article, no JSON format or additional tags."""
+        else:
+            topics = [
+                "los beneficios de la energía solar",
+                "la importancia de la biodiversidad",
+                "cómo la inteligencia artificial está cambiando el trabajo",
+                "la historia del chocolate",
+                "los efectos del cambio climático en los océanos",
+                "la psicología del color en el marketing",
+                "la evolución de los videojuegos",
+                "los misterios del espacio profundo"
+            ]
+            
+            topic = random.choice(topics)
+            
+            return f"""Escribe un artículo informativo sobre {topic}.
 El artículo debe tener entre 400-600 palabras, con título, introducción, desarrollo con subtemas y conclusión.
 Usa un tono educativo pero accesible para el público general.
 Solo responde con el artículo completo, sin formato JSON ni etiquetas adicionales."""
 
     @staticmethod
-    def get_code_prompt() -> str:
-        languages = ["Python", "JavaScript", "Java", "C++", "Go", "Rust"]
-        projects = [
-            "un sistema de gestión de biblioteca",
-            "un juego de adivinanza de números",
-            "un calculadora básica",
-            "un sistema de login simple",
-            "un generador de contraseñas",
-            "un convertidor de monedas",
-            "un organizador de tareas",
-            "un analizador de texto"
-        ]
+    def get_code_prompt(language: str = "es") -> str:
+        prog_languages = ["Python", "JavaScript", "Java", "C++", "Go", "Rust"]
         
-        language = random.choice(languages)
-        project = random.choice(projects)
-        
-        return f"""Crea código completo en {language} para {project}.
+        if language == "en":
+            projects = [
+                "a library management system",
+                "a number guessing game",
+                "a basic calculator",
+                "a simple login system",
+                "a password generator",
+                "a currency converter",
+                "a task organizer",
+                "a text analyzer"
+            ]
+            
+            prog_language = random.choice(prog_languages)
+            project = random.choice(projects)
+            
+            return f"""Create complete code in {prog_language} for {project}.
+Include explanatory comments, basic error handling and usage examples.
+The code should be functional and well-structured.
+Only respond with the code and comments, no JSON format or additional tags."""
+        else:
+            projects = [
+                "un sistema de gestión de biblioteca",
+                "un juego de adivinanza de números",
+                "un calculadora básica",
+                "un sistema de login simple",
+                "un generador de contraseñas",
+                "un convertidor de monedas",
+                "un organizador de tareas",
+                "un analizador de texto"
+            ]
+            
+            prog_language = random.choice(prog_languages)
+            project = random.choice(projects)
+            
+            return f"""Crea código completo en {prog_language} para {project}.
 Incluye comentarios explicativos, manejo básico de errores y ejemplos de uso.
 El código debe ser funcional y bien estructurado.
 Solo responde con el código y comentarios, sin formato JSON ni etiquetas adicionales."""
 
     @staticmethod
-    def get_essay_prompt() -> str:
-        themes = [
-            "la importancia de la educación en el siglo XXI",
-            "el impacto de las redes sociales en las relaciones humanas",
-            "la ética en la inteligencia artificial",
-            "el futuro del trabajo remoto",
-            "la conservación del medio ambiente",
-            "la influencia de la música en el estado de ánimo",
-            "los desafíos de la globalización",
-            "la importancia de la lectura en la era digital"
-        ]
-        
-        theme = random.choice(themes)
-        
-        return f"""Escribe un ensayo reflexivo sobre {theme}.
+    def get_essay_prompt(language: str = "es") -> str:
+        if language == "en":
+            themes = [
+                "the importance of education in the 21st century",
+                "the impact of social media on human relationships",
+                "ethics in artificial intelligence",
+                "the future of remote work",
+                "environmental conservation",
+                "the influence of music on mood",
+                "the challenges of globalization",
+                "the importance of reading in the digital age"
+            ]
+            
+            theme = random.choice(themes)
+            
+            return f"""Write a reflective essay about {theme}.
+The essay should be 400-500 words long, with a clear thesis, solid arguments and examples.
+Use an academic but accessible tone.
+Only respond with the complete essay, no JSON format or additional tags."""
+        else:
+            themes = [
+                "la importancia de la educación en el siglo XXI",
+                "el impacto de las redes sociales en las relaciones humanas",
+                "la ética en la inteligencia artificial",
+                "el futuro del trabajo remoto",
+                "la conservación del medio ambiente",
+                "la influencia de la música en el estado de ánimo",
+                "los desafíos de la globalización",
+                "la importancia de la lectura en la era digital"
+            ]
+            
+            theme = random.choice(themes)
+            
+            return f"""Escribe un ensayo reflexivo sobre {theme}.
 El ensayo debe tener entre 400-500 palabras, con una tesis clara, argumentos sólidos y ejemplos.
 Usa un tono académico pero accesible.
 Solo responde con el ensayo completo, sin formato JSON ni etiquetas adicionales."""
@@ -207,6 +314,12 @@ class DatasetGenerator:
         
     def get_random_prompt(self) -> str:
         """Obtiene un prompt aleatorio"""
+        # Seleccionar idioma para este prompt
+        if self.config.language == "mixed":
+            current_lang = random.choice(["es", "en"])
+        else:
+            current_lang = self.config.language
+            
         prompt_methods = [
             self.prompts.get_story_prompt,
             self.prompts.get_instruction_prompt,
@@ -215,7 +328,7 @@ class DatasetGenerator:
             self.prompts.get_code_prompt,
             self.prompts.get_essay_prompt
         ]
-        return random.choice(prompt_methods)()
+        return random.choice(prompt_methods)(current_lang)
     
     async def generate_batch(self, client: OllamaClient, batch_id: int) -> List[Dict[str, Any]]:
         """Genera un lote de ejemplos"""
@@ -246,7 +359,7 @@ class DatasetGenerator:
                 f.write(json.dumps(item, ensure_ascii=False) + '\n')
         
         self.generated_count += len(batch_data)
-        logger.info(f"Guardado lote {batch_id}: {len(batch_data)} elementos")
+        logger.info(f"✓ Guardado lote {batch_id + 1}: {len(batch_data)} elementos | Total: {self.generated_count:,}")
     
     def save_checkpoint(self):
         """Guarda un checkpoint del progreso"""
@@ -259,7 +372,7 @@ class DatasetGenerator:
         with open(self.output_dir / "checkpoint.json", 'w') as f:
             json.dump(checkpoint_data, f, indent=2)
         
-        logger.info(f"Checkpoint guardado: {self.generated_count:,} elementos generados")
+        logger.info(f"💾 Checkpoint guardado: {self.generated_count:,} elementos ({(self.generated_count / self.config.target_size) * 100:.1f}%)")
     
     def load_checkpoint(self) -> int:
         """Carga el último checkpoint"""
@@ -293,9 +406,11 @@ class DatasetGenerator:
             
             async def process_batch(batch_id: int):
                 async with semaphore:
+                    logger.info(f"Procesando lote {batch_id + 1}/{total_batches}")
                     batch_data = await self.generate_batch(client, batch_id)
                     if batch_data:
                         self.save_batch(batch_data, batch_id)
+                        logger.info(f"Lote {batch_id + 1} completado: {len(batch_data)} ejemplos generados")
                         
                         if batch_id % (self.config.checkpoint_interval // self.config.batch_size) == 0:
                             self.save_checkpoint()
@@ -312,9 +427,17 @@ class DatasetGenerator:
             
             # Ejecuta con barra de progreso
             results = []
-            for task in tqdm(asyncio.as_completed(tasks), total=len(tasks), desc="Generando dataset"):
-                result = await task
-                results.append(result)
+            completed = 0
+            with tqdm(total=len(tasks), desc="Generando dataset", unit="lotes") as pbar:
+                for task in asyncio.as_completed(tasks):
+                    result = await task
+                    results.append(result)
+                    completed += 1
+                    pbar.update(1)
+                    pbar.set_postfix({
+                        'ejemplos': f"{sum(results):,}",
+                        'progreso': f"{(sum(results) / self.config.target_size) * 100:.1f}%"
+                    })
         
         self.save_checkpoint()
         logger.info(f"Generación completada: {self.generated_count:,} elementos generados")
@@ -348,6 +471,7 @@ def main():
     parser.add_argument("--output", type=str, default="generated_dataset", help="Directorio de salida")
     parser.add_argument("--ollama-url", type=str, default="http://localhost:11434", help="URL de Ollama")
     parser.add_argument("--model", type=str, default="llama3.1", help="Modelo de Ollama a usar")
+    parser.add_argument("--language", type=str, default="es", choices=["es", "en", "mixed"], help="Idioma del dataset: es (español), en (inglés), mixed (ambos)")
     parser.add_argument("--consolidate-only", action="store_true", help="Solo consolidar archivos existentes")
     
     args = parser.parse_args()
@@ -358,7 +482,8 @@ def main():
         max_concurrent=args.concurrent,
         output_dir=args.output,
         model_name=args.model,
-        ollama_url=args.ollama_url
+        ollama_url=args.ollama_url,
+        language=args.language
     )
     
     generator = DatasetGenerator(config)
