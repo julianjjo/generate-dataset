@@ -5,10 +5,12 @@ Generador de datasets masivos para entrenamiento de modelos de lenguaje usando O
 ## 🚀 Características
 
 - **Generación masiva**: Soporte para datasets de hasta 100M de ejemplos
+- **Soporte multiidioma**: Español, inglés o contenido mixto
 - **Múltiples tipos de contenido**: Cuentos, instrucciones, código, artículos, diálogos y ensayos
 - **Formato optimizado**: Compatible con `tokenize_function` estándar
 - **Procesamiento asíncrono**: Generación eficiente con control de concurrencia
 - **Sistema de checkpoints**: Recuperación automática en caso de interrupciones
+- **Progreso en tiempo real**: Logs detallados y barra de progreso actualizada
 - **Consolidación automática**: Combina múltiples archivos en un dataset final
 
 ## 📋 Requisitos
@@ -49,20 +51,26 @@ Generador de datasets masivos para entrenamiento de modelos de lenguaje usando O
 
 ### Generación Simple
 ```bash
-# Generar 1000 ejemplos con configuración por defecto
+# Generar 1000 ejemplos en español (por defecto)
 python main.py --size 1000
 
-# Generar dataset pequeño para pruebas
-python main.py --size 100 --batch-size 10 --output prueba_dataset
+# Generar dataset pequeño en inglés
+python main.py --size 100 --batch-size 10 --language en --output english_dataset
+
+# Generar dataset mixto (español + inglés)
+python main.py --size 500 --language mixed --output multilingual_dataset
 ```
 
 ### Configuración Avanzada
 ```bash
-# Dataset masivo con modelo específico
-python main.py --size 10000000 --model codellama --batch-size 200 --concurrent 30
+# Dataset masivo en inglés con modelo específico
+python main.py --size 10000000 --model codellama --batch-size 200 --concurrent 30 --language en
 
-# Usar servidor Ollama remoto
-python main.py --ollama-url http://192.168.1.100:11434 --model llama3.1 --size 50000
+# Dataset mixto usando servidor Ollama remoto
+python main.py --ollama-url http://192.168.1.100:11434 --model llama3.1 --size 50000 --language mixed
+
+# Dataset especializado en código con CodeLlama
+python main.py --model codellama --size 25000 --language en --output code_dataset
 ```
 
 ### Solo Consolidación
@@ -71,9 +79,32 @@ python main.py --ollama-url http://192.168.1.100:11434 --model llama3.1 --size 5
 python main.py --consolidate-only --output mi_dataset
 ```
 
+## 🌍 Soporte Multiidioma
+
+El generador soporta tres modos de idioma:
+
+| Modo | Descripción | Uso |
+|------|-------------|-----|
+| **Español (`es`)** | Todo el contenido en español | `--language es` (por defecto) |
+| **Inglés (`en`)** | Todo el contenido en inglés | `--language en` |
+| **Mixto (`mixed`)** | Alterna aleatoriamente entre español e inglés | `--language mixed` |
+
+### Ejemplos de Uso por Idioma
+
+```bash
+# Dataset completamente en español
+python main.py --size 10000 --language es --output spanish_dataset
+
+# Dataset completamente en inglés  
+python main.py --size 10000 --language en --output english_dataset
+
+# Dataset mixto (ideal para modelos multilingües)
+python main.py --size 10000 --language mixed --output multilingual_dataset
+```
+
 ## 📊 Tipos de Dataset Generados
 
-El generador crea 6 tipos diferentes de contenido:
+El generador crea 6 tipos diferentes de contenido en ambos idiomas:
 
 | Tipo | Descripción | Tamaño típico |
 |------|-------------|---------------|
@@ -100,23 +131,41 @@ python main.py [opciones]
 | `--output` | Directorio de salida | "generated_dataset" |
 | `--ollama-url` | URL del servidor Ollama | "http://localhost:11434" |
 | `--model` | Modelo de Ollama a usar | "llama3.1" |
+| `--language` | Idioma del dataset | "es" |
 | `--consolidate-only` | Solo consolidar archivos existentes | False |
+
+### Opciones de Idioma
+
+| Valor | Descripción |
+|-------|-------------|
+| `es` | Genera todo el contenido en español |
+| `en` | Genera todo el contenido en inglés |
+| `mixed` | Alterna aleatoriamente entre español e inglés por ejemplo |
 
 ### Ejemplos de Uso por Escenario
 
-#### Dataset para Fine-tuning General
+#### Dataset para Fine-tuning General en Español
 ```bash
-python main.py --size 100000 --model llama3.1 --batch-size 50 --output general_dataset
+python main.py --size 100000 --model llama3.1 --batch-size 50 --language es --output spanish_general
 ```
 
-#### Dataset de Código
+#### Dataset de Código en Inglés
 ```bash
-python main.py --size 50000 --model codellama --batch-size 25 --output code_dataset
+python main.py --size 50000 --model codellama --batch-size 25 --language en --output english_code
 ```
 
-#### Dataset Masivo (Producción)
+#### Dataset Multilingüe Masivo (Producción)
 ```bash
-python main.py --size 50000000 --batch-size 500 --concurrent 50 --output production_dataset
+python main.py --size 50000000 --batch-size 500 --concurrent 50 --language mixed --output multilingual_production
+```
+
+#### Dataset Especializado por Idioma
+```bash
+# Instrucciones técnicas en inglés
+python main.py --size 25000 --model llama3.1 --language en --output tech_instructions_en
+
+# Contenido creativo en español
+python main.py --size 25000 --model llama3.1 --language es --output creative_content_es
 ```
 
 ## 📁 Estructura de Salida
@@ -140,15 +189,35 @@ Cada línea en los archivos `.jsonl` tiene el formato:
 
 Este formato es **directamente compatible** con la función `tokenize_function` estándar que busca el campo `text`.
 
-## 🔄 Sistema de Checkpoints
+## 🔄 Sistema de Checkpoints y Progreso
 
-El generador incluye un sistema robusto de checkpoints:
+El generador incluye un sistema robusto de checkpoints y monitoreo en tiempo real:
 
+### Checkpoints Automáticos
 - **Guardado automático**: Cada 10,000 ejemplos generados
 - **Recuperación automática**: Reanuda desde el último checkpoint
 - **Información de progreso**: Tracking detallado del avance
 
-Ejemplo de checkpoint:
+### Monitoreo en Tiempo Real
+- **Logs detallados**: Información de cada lote procesado
+- **Barra de progreso**: Actualización visual continua
+- **Contadores dinámicos**: Ejemplos generados y porcentaje completado
+- **Indicadores visuales**: Emojis para fácil identificación (✓, 💾)
+
+### Ejemplo de Salida de Progreso
+```
+2025-08-23 23:18:19,489 - INFO - Iniciando generación de dataset: 10,000 ejemplos
+2025-08-23 23:18:21,279 - INFO - Conexión con Ollama establecida
+2025-08-23 23:18:22,156 - INFO - Procesando lote 1/100
+2025-08-23 23:18:25,789 - INFO - ✓ Guardado lote 1: 100 elementos | Total: 100
+2025-08-23 23:18:26,234 - INFO - Lote 1 completado: 100 ejemplos generados
+
+Generando dataset: 15%|████████████                     | 15/100 lotes [ejemplos: 1,500, progreso: 15.0%]
+
+2025-08-23 23:25:34,123 - INFO - 💾 Checkpoint guardado: 10,000 elementos (100.0%)
+```
+
+### Formato de Checkpoint
 ```json
 {
   "generated_count": 50000,
@@ -209,6 +278,14 @@ ollama pull llama3.1
 - Usar un modelo más rápido (ej: `llama3.1` vs `llama3.1:70b`)
 - Ajustar parámetros de concurrencia
 
+#### Problemas con idiomas específicos
+- **Contenido en idioma incorrecto**: Verificar el parámetro `--language`
+- **Mezcla inconsistente**: En modo `mixed`, la alternancia es aleatoria por diseño
+- **Modelos especializados**: Algunos modelos funcionan mejor con idiomas específicos:
+  - `llama3.1`: Excelente para español e inglés
+  - `codellama`: Mejor para código en inglés
+  - `mistral`: Bueno para contenido multilingüe
+
 ## 🤝 Contribuciones
 
 Las contribuciones son bienvenidas. Por favor:
@@ -231,4 +308,21 @@ Este proyecto está bajo la Licencia MIT. Ver `LICENSE` para más detalles.
 
 ---
 
-⚡ **Tip**: Para datasets muy grandes, considera ejecutar el generador en un servidor dedicado con buena conectividad y recursos computacionales adecuados.
+## 💡 Tips y Mejores Prácticas
+
+### Para Datasets Multilingües
+- **Modo mixto**: Ideal para entrenar modelos que necesiten responder en ambos idiomas
+- **Datasets separados**: Para fine-tuning específico por idioma, genera datasets individuales
+- **Verificación de calidad**: Revisa algunos ejemplos para asegurar la calidad del idioma
+
+### Para Datasets Masivos
+- **Servidores dedicados**: Para datasets muy grandes, usa un servidor con buena conectividad
+- **Monitoreo continuo**: Las mejoras de progreso te permiten monitorear generaciones largas
+- **Checkpoints**: Los checkpoints automáticos permiten reanudar generaciones interrumpidas
+
+### Para Rendimiento Óptimo
+- **Concurrencia balanceada**: Más concurrent tasks = mayor memoria, pero también mayor velocidad
+- **Batch size apropiado**: Lotes más grandes son más eficientes pero consumen más memoria
+- **Modelo adecuado**: Elige el modelo según el tipo de contenido que necesites
+
+⚡ **Recomendación**: Para datasets de producción, inicia con una prueba pequeña usando `--size 1000` para verificar calidad y rendimiento antes de generar el dataset completo.
