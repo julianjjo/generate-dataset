@@ -33,6 +33,7 @@ class DatasetConfig:
     ollama_url: str = "http://localhost:11434"
     language: str = "es"  # "es" para español, "en" para inglés, "mixed" para ambos
     max_tokens: Optional[int] = None  # Se calculará automáticamente
+    timeout: Optional[int] = None  # Timeout en segundos, se calculará automáticamente si es None
     
     def get_optimized_concurrency(self) -> int:
         """Optimiza la concurrencia basada en el tamaño del modelo para CPU"""
@@ -55,6 +56,8 @@ class DatasetConfig:
         # Modelos conocidos con contextos específicos
         if "qwen" in model_lower and ("coder" in model_lower or "30b" in model_lower):
             return 1024  # qwen3-coder tiene 1024 tokens
+        elif "nemotron" in model_lower:
+            return 4096  # Nemotron típicamente 4096 tokens
         elif "codellama" in model_lower:
             return 2048  # CodeLlama típicamente 2048
         elif "llama" in model_lower:
@@ -78,13 +81,19 @@ class DatasetConfig:
 class OllamaClient:
     """Cliente para interactuar con Ollama"""
     
-    def __init__(self, base_url: str = "http://localhost:11434", model_name: str = "llama3.1"):
+    def __init__(self, base_url: str = "http://localhost:11434", model_name: str = "llama3.1", timeout: Optional[int] = None):
         self.base_url = base_url
         self.model_name = model_name
+        self.timeout = timeout
         self.session = None
         
     def _get_timeout_for_model(self) -> int:
-        """Calcula timeout dinámico basado en el tamaño del modelo"""
+        """Calcula timeout dinámico basado en el tamaño del modelo o usa el timeout personalizado"""
+        # Si hay timeout personalizado, usarlo
+        if self.timeout is not None:
+            return self.timeout
+            
+        # Sino, calcular automáticamente
         model_lower = self.model_name.lower()
         
         # Modelos muy grandes (30B+) en CPU
@@ -114,13 +123,32 @@ class OllamaClient:
             await self.session.close()
     
     async def verify_model(self) -> bool:
-        """Verifica que el modelo existe en Ollama"""
+        """Verifica que el modelo existe en Ollama y sugiere alternativas"""
         try:
             async with self.session.get(f"{self.base_url}/api/tags") as response:
                 if response.status == 200:
                     data = await response.json()
-                    models = [model["name"] for model in data.get("models", [])]
-                    return self.model_name in models
+                    available_models = [model["name"] for model in data.get("models", [])]
+                    
+                    if self.model_name in available_models:
+                        return True
+                    
+                    # Buscar modelos similares para sugerir correcciones
+                    similar_models = []
+                    model_base = self.model_name.split(':')[0].lower()
+                    
+                    for model in available_models:
+                        if model_base in model.lower():
+                            similar_models.append(model)
+                    
+                    if similar_models:
+                        logger.error(f"Modelo '{self.model_name}' no encontrado.")
+                        logger.error(f"¿Quisiste decir? {', '.join(similar_models)}")
+                    else:
+                        logger.error(f"Modelo '{self.model_name}' no encontrado.")
+                        logger.error(f"Modelos disponibles: {', '.join(available_models)}")
+                    
+                    return False
                 else:
                     logger.error(f"Error al verificar modelos: {response.status}")
                     return False
@@ -423,7 +451,7 @@ class DatasetGenerator:
         start_batch = self.load_checkpoint()
         total_batches = (self.config.target_size + self.config.batch_size - 1) // self.config.batch_size
         
-        async with OllamaClient(self.config.ollama_url, self.config.model_name) as client:
+        async with OllamaClient(self.config.ollama_url, self.config.model_name, self.config.timeout) as client:
             # Verificar que el modelo existe
             if not await client.verify_model():
                 logger.error(f"Modelo '{self.config.model_name}' no encontrado. Usa 'ollama pull {self.config.model_name}' para descargarlo")
@@ -547,7 +575,11 @@ def show_cpu_optimization_tips(model_name: str):
         print("   --batch-size 100+   (Lotes grandes)")
         print(f"   Ejemplo: python main.py --model {model_name} --concurrent 15 --batch-size 100 --size 50000")
     
-    print(f"\n⏱️  Timeout automático: {600 if any(size in model_lower for size in ['30b', '32b', '34b', '70b']) else 180 if any(size in model_lower for size in ['7b', '8b', '13b', '14b']) else 120} segundos")
+    # Crear cliente temporal para obtener timeout
+    temp_client = OllamaClient(model_name=model_name)
+    auto_timeout = temp_client._get_timeout_for_model()
+    print(f"\n⏱️  Timeout automático: {auto_timeout} segundos")
+    print(f"    Usar --timeout X para personalizar")
     print()
 
 def main():
@@ -561,6 +593,7 @@ def main():
     parser.add_argument("--language", type=str, default="es", choices=["es", "en", "mixed"], help="Idioma del dataset: es (español), en (inglés), mixed (ambos)")
     parser.add_argument("--consolidate-only", action="store_true", help="Solo consolidar archivos existentes")
     parser.add_argument("--cpu-tips", action="store_true", help="Muestra consejos de optimización para CPU")
+    parser.add_argument("--timeout", type=int, default=None, help="Timeout en segundos para cada generación (automático si no se especifica)")
     
     args = parser.parse_args()
     
@@ -576,7 +609,8 @@ def main():
         output_dir=args.output,
         model_name=args.model,
         ollama_url=args.ollama_url,
-        language=args.language
+        language=args.language,
+        timeout=args.timeout
     )
     
     generator = DatasetGenerator(config)
