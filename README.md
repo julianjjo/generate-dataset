@@ -1,223 +1,236 @@
-# Dataset Generator con Ollama
+# Massive Dataset Generator with Ollama
 
-Generador de datasets masivos para entrenamiento de modelos de lenguaje usando Ollama. Capaz de generar hasta 100 millones de ejemplos con diferentes tipos de contenido de alta calidad.
+Massive dataset generator for training language models using Ollama. Capable of generating up to 100 million high-quality examples with different types of content.
 
-## 🚀 Características
+## 🚀 Features
 
-- **Generación masiva**: Soporte para datasets de hasta 100M de ejemplos
-- **Soporte multiidioma**: Español, inglés o contenido mixto
-- **Múltiples tipos de contenido**: Cuentos, instrucciones, código, artículos, diálogos y ensayos
-- **Formato optimizado**: Compatible con `tokenize_function` estándar
-- **Procesamiento asíncrono**: Generación eficiente con control de concurrencia
-- **Sistema de checkpoints**: Recuperación automática en caso de interrupciones
-- **Progreso en tiempo real**: Logs detallados y barra de progreso actualizada
-- **Consolidación automática**: Combina múltiples archivos en un dataset final
+- **Massive generation**: Support for datasets up to 100M examples
+- **Multilingual support**: English, Spanish, or mixed content
+- **Multiple content types**: Stories, instructions, code, articles, dialogues, and essays
+- **Optimized format**: Compatible with standard `tokenize_function`
+- **Asynchronous processing**: Efficient generation with concurrency control
+- **Checkpoint system**: Automatic recovery in case of interruptions
+- **Real-time progress**: Detailed logs and updated progress bar
+- **Automatic consolidation**: Combines multiple files into a final dataset
+- **Custom timeouts**: Configurable generation timeouts for different models
 
-## 📋 Requisitos
+## 📋 Requirements
 
 - Python 3.8+
-- Ollama instalado y ejecutándose
-- Al menos un modelo de Ollama descargado (ej: `llama3.1`, `codellama`)
+- Ollama installed and running
+- At least one Ollama model downloaded (e.g., `llama3.1`, `codellama`, `nemotron`)
 
-## 🛠️ Instalación
+## 🛠️ Installation
 
-1. **Clonar el repositorio**:
+1. **Clone the repository**:
    ```bash
    git clone <repository-url>
    cd generate-dataset
    ```
 
-2. **Instalar dependencias**:
+2. **Install dependencies**:
    ```bash
    pip install -r requirements.txt
    ```
 
-3. **Instalar y configurar Ollama**:
+3. **Install and configure Ollama**:
    ```bash
-   # Descargar Ollama desde https://ollama.ai
+   # Download Ollama from https://ollama.ai
    
-   # Descargar un modelo (ejemplo)
+   # Download a model (example)
    ollama pull llama3.1
    ollama pull codellama
+   ollama pull nemotron:latest
    ```
 
-4. **Verificar instalación**:
+4. **Verify installation**:
    ```bash
-   ollama list  # Debe mostrar los modelos descargados
-   ollama serve # Iniciar servidor (puerto 11434 por defecto)
+   ollama list  # Should show downloaded models
+   ollama serve # Start server (default port 11434)
    ```
 
-## 🎯 Uso Básico
+## 🎯 Basic Usage
 
-### Generación Simple
+### Simple Generation
 ```bash
-# Generar 1000 ejemplos en español (por defecto)
-python main.py --size 1000
+# Generate 1000 examples in English (default changed to English)
+python main.py --size 1000 --language en
 
-# Generar dataset pequeño en inglés
-python main.py --size 100 --batch-size 10 --language en --output english_dataset
+# Generate small dataset in Spanish
+python main.py --size 100 --batch-size 10 --language es --output spanish_dataset
 
-# Generar dataset mixto (español + inglés)
+# Generate mixed dataset (Spanish + English)
 python main.py --size 500 --language mixed --output multilingual_dataset
 ```
 
-### Configuración Avanzada
+### Advanced Configuration
 ```bash
-# Dataset masivo en inglés con modelo específico
+# Massive English dataset with specific model
 python main.py --size 10000000 --model codellama --batch-size 200 --concurrent 30 --language en
 
-# Dataset mixto usando servidor Ollama remoto
+# Mixed dataset using remote Ollama server
 python main.py --ollama-url http://192.168.1.100:11434 --model llama3.1 --size 50000 --language mixed
 
-# Dataset especializado en código con CodeLlama
+# Specialized code dataset with CodeLlama
 python main.py --model codellama --size 25000 --language en --output code_dataset
+
+# High-performance generation with custom timeout
+python main.py --size 10000000 --model nemotron:latest --batch-size 300 --concurrent 15 --language en --timeout 1200
 ```
 
-### Solo Consolidación
+### Consolidation Only
 ```bash
-# Consolidar archivos existentes sin generar nuevos
-python main.py --consolidate-only --output mi_dataset
+# Consolidate existing files without generating new ones
+python main.py --consolidate-only --output my_dataset
 ```
 
-## 🌍 Soporte Multiidioma
+## 🌍 Multilingual Support
 
-El generador soporta tres modos de idioma:
+The generator supports three language modes:
 
-| Modo | Descripción | Uso |
-|------|-------------|-----|
-| **Español (`es`)** | Todo el contenido en español | `--language es` (por defecto) |
-| **Inglés (`en`)** | Todo el contenido en inglés | `--language en` |
-| **Mixto (`mixed`)** | Alterna aleatoriamente entre español e inglés | `--language mixed` |
+| Mode | Description | Usage |
+|------|-------------|-------|
+| **English (`en`)** | All content in English | `--language en` |
+| **Spanish (`es`)** | All content in Spanish | `--language es` |
+| **Mixed (`mixed`)** | Randomly alternates between Spanish and English | `--language mixed` |
 
-### Ejemplos de Uso por Idioma
+### Usage Examples by Language
 
 ```bash
-# Dataset completamente en español
-python main.py --size 10000 --language es --output spanish_dataset
-
-# Dataset completamente en inglés  
+# Dataset completely in English
 python main.py --size 10000 --language en --output english_dataset
 
-# Dataset mixto (ideal para modelos multilingües)
+# Dataset completely in Spanish  
+python main.py --size 10000 --language es --output spanish_dataset
+
+# Mixed dataset (ideal for multilingual models)
 python main.py --size 10000 --language mixed --output multilingual_dataset
 ```
 
-## 📊 Tipos de Dataset Generados
+## 📊 Generated Dataset Types
 
-El generador crea 6 tipos diferentes de contenido en ambos idiomas:
+The generator creates 6 different types of content in both languages:
 
-| Tipo | Descripción | Tamaño típico |
-|------|-------------|---------------|
-| **Cuentos** | Narrativas completas con inicio, desarrollo y final | 300-500 palabras |
-| **Instrucciones** | Guías paso a paso educativas y técnicas | 200+ palabras |
-| **Diálogos** | Conversaciones naturales con contexto | 8-10 intercambios |
-| **Artículos** | Textos informativos estructurados | 400-600 palabras |
-| **Código** | Programas completos con comentarios | Funcional y documentado |
-| **Ensayos** | Textos reflexivos y académicos | 400-500 palabras |
+| Type | Description | Typical Size |
+|------|-------------|--------------|
+| **Stories** | Complete narratives with beginning, development, and ending | 300-500 words |
+| **Instructions** | Step-by-step educational and technical guides | 200+ words |
+| **Dialogues** | Natural conversations with context | 8-10 exchanges |
+| **Articles** | Structured informative texts | 400-600 words |
+| **Code** | Complete programs with comments | Functional and documented |
+| **Essays** | Reflective and academic texts | 400-500 words |
 
-## 🔧 Parámetros de Configuración
+## 🔧 Configuration Parameters
 
-### Argumentos de línea de comandos
+### Command Line Arguments
 
 ```bash
-python main.py [opciones]
+python main.py [options]
 ```
 
-| Parámetro | Descripción | Valor por defecto |
-|-----------|-------------|-------------------|
-| `--size` | Número total de ejemplos a generar | 100,000,000 |
-| `--batch-size` | Ejemplos por lote | 100 |
-| `--concurrent` | Tareas concurrentes máximas | 20 |
-| `--output` | Directorio de salida | "generated_dataset" |
-| `--ollama-url` | URL del servidor Ollama | "http://localhost:11434" |
-| `--model` | Modelo de Ollama a usar | "llama3.1" |
-| `--language` | Idioma del dataset | "es" |
-| `--consolidate-only` | Solo consolidar archivos existentes | False |
+| Parameter | Description | Default Value |
+|-----------|-------------|---------------|
+| `--size` | Total number of examples to generate | 100,000,000 |
+| `--batch-size` | Examples per batch | 100 |
+| `--concurrent` | Maximum concurrent tasks | 20 |
+| `--output` | Output directory | "generated_dataset" |
+| `--ollama-url` | Ollama server URL | "http://localhost:11434" |
+| `--model` | Ollama model to use | "llama3.1" |
+| `--language` | Dataset language | "es" |
+| `--timeout` | Custom timeout in seconds | Automatic based on model |
+| `--consolidate-only` | Only consolidate existing files | False |
+| `--cpu-tips` | Show CPU optimization tips | False |
 
-### Opciones de Idioma
+### Language Options
 
-| Valor | Descripción |
+| Value | Description |
 |-------|-------------|
-| `es` | Genera todo el contenido en español |
-| `en` | Genera todo el contenido en inglés |
-| `mixed` | Alterna aleatoriamente entre español e inglés por ejemplo |
+| `en` | Generates all content in English |
+| `es` | Generates all content in Spanish |
+| `mixed` | Randomly alternates between Spanish and English per example |
 
-### Ejemplos de Uso por Escenario
+### Usage Examples by Scenario
 
-#### Dataset para Fine-tuning General en Español
+#### General Fine-tuning Dataset in English
 ```bash
-python main.py --size 100000 --model llama3.1 --batch-size 50 --language es --output spanish_general
+python main.py --size 100000 --model llama3.1 --batch-size 50 --language en --output english_general
 ```
 
-#### Dataset de Código en Inglés
+#### Code Dataset in English
 ```bash
 python main.py --size 50000 --model codellama --batch-size 25 --language en --output english_code
 ```
 
-#### Dataset Multilingüe Masivo (Producción)
+#### Massive Multilingual Dataset (Production)
 ```bash
-python main.py --size 50000000 --batch-size 500 --concurrent 50 --language mixed --output multilingual_production
+python main.py --size 50000000 --batch-size 500 --concurrent 50 --language mixed --output multilingual_production --timeout 600
 ```
 
-#### Dataset Especializado por Idioma
+#### Specialized Dataset by Language
 ```bash
-# Instrucciones técnicas en inglés
+# Technical instructions in English
 python main.py --size 25000 --model llama3.1 --language en --output tech_instructions_en
 
-# Contenido creativo en español
+# Creative content in Spanish
 python main.py --size 25000 --model llama3.1 --language es --output creative_content_es
 ```
 
-## 📁 Estructura de Salida
+#### CPU Optimization for Large Models
+```bash
+# Large model on CPU with optimized settings
+python main.py --size 1000000 --model nemotron:latest --batch-size 50 --concurrent 5 --language en --timeout 1800 --cpu-tips
+```
+
+## 📁 Output Structure
 
 ```
-mi_dataset/
-├── batch_000001.jsonl    # Lotes individuales
+my_dataset/
+├── batch_000001.jsonl    # Individual batches
 ├── batch_000002.jsonl
 ├── ...
-├── checkpoint.json       # Progreso guardado
-└── complete_dataset.jsonl # Dataset consolidado (opcional)
+├── checkpoint.json       # Saved progress
+└── complete_dataset.jsonl # Consolidated dataset (optional)
 ```
 
-### Formato de Datos
+### Data Format
 
-Cada línea en los archivos `.jsonl` tiene el formato:
+Each line in the `.jsonl` files has the format:
 
 ```json
-{"text": "Contenido completo del ejemplo aquí..."}
+{"text": "Complete example content here..."}
 ```
 
-Este formato es **directamente compatible** con la función `tokenize_function` estándar que busca el campo `text`.
+This format is **directly compatible** with the standard `tokenize_function` that looks for the `text` field.
 
-## 🔄 Sistema de Checkpoints y Progreso
+## 🔄 Checkpoint System and Progress
 
-El generador incluye un sistema robusto de checkpoints y monitoreo en tiempo real:
+The generator includes a robust checkpoint system and real-time monitoring:
 
-### Checkpoints Automáticos
-- **Guardado automático**: Cada 10,000 ejemplos generados
-- **Recuperación automática**: Reanuda desde el último checkpoint
-- **Información de progreso**: Tracking detallado del avance
+### Automatic Checkpoints
+- **Automatic saving**: Every 10,000 generated examples
+- **Automatic recovery**: Resumes from the last checkpoint
+- **Progress information**: Detailed tracking of advancement
 
-### Monitoreo en Tiempo Real
-- **Logs detallados**: Información de cada lote procesado
-- **Barra de progreso**: Actualización visual continua
-- **Contadores dinámicos**: Ejemplos generados y porcentaje completado
-- **Indicadores visuales**: Emojis para fácil identificación (✓, 💾)
+### Real-time Monitoring
+- **Detailed logs**: Information for each processed batch
+- **Progress bar**: Continuous visual updates
+- **Dynamic counters**: Generated examples and completion percentage
+- **Visual indicators**: Emojis for easy identification (✓, 💾)
 
-### Ejemplo de Salida de Progreso
+### Progress Output Example
 ```
-2025-08-23 23:18:19,489 - INFO - Iniciando generación de dataset: 10,000 ejemplos
-2025-08-23 23:18:21,279 - INFO - Conexión con Ollama establecida
-2025-08-23 23:18:22,156 - INFO - Procesando lote 1/100
-2025-08-23 23:18:25,789 - INFO - ✓ Guardado lote 1: 100 elementos | Total: 100
-2025-08-23 23:18:26,234 - INFO - Lote 1 completado: 100 ejemplos generados
+2025-08-23 23:18:19,489 - INFO - Starting dataset generation: 10,000 examples
+2025-08-23 23:18:21,279 - INFO - Ollama connection established
+2025-08-23 23:18:22,156 - INFO - Processing batch 1/100
+2025-08-23 23:18:25,789 - INFO - ✓ Saved batch 1: 100 elements | Total: 100
+2025-08-23 23:18:26,234 - INFO - Batch 1 completed: 100 examples generated
 
-Generando dataset: 15%|████████████                     | 15/100 lotes [ejemplos: 1,500, progreso: 15.0%]
+Generating dataset: 15%|████████████                     | 15/100 batches [examples: 1,500, progress: 15.0%]
 
-2025-08-23 23:25:34,123 - INFO - 💾 Checkpoint guardado: 10,000 elementos (100.0%)
+2025-08-23 23:25:34,123 - INFO - 💾 Checkpoint saved: 10,000 elements (100.0%)
 ```
 
-### Formato de Checkpoint
+### Checkpoint Format
 ```json
 {
   "generated_count": 50000,
@@ -226,81 +239,139 @@ Generando dataset: 15%|████████████                     
 }
 ```
 
-## 📈 Rendimiento y Optimización
+## 📈 Performance and Optimization
 
-### Recomendaciones por Tamaño de Dataset
+### Recommendations by Dataset Size
 
-| Tamaño del Dataset | Batch Size | Concurrent | Tiempo Estimado* |
-|-------------------|------------|------------|------------------|
+| Dataset Size | Batch Size | Concurrent | Estimated Time* |
+|--------------|------------|------------|-----------------|
 | 1K - 10K | 10-25 | 5-10 | 10-30 min |
-| 10K - 100K | 25-100 | 10-20 | 1-5 horas |
-| 100K - 1M | 100-200 | 20-30 | 5-20 horas |
-| 1M+ | 200-500 | 30-50 | 20+ horas |
+| 10K - 100K | 25-100 | 10-20 | 1-5 hours |
+| 100K - 1M | 100-200 | 20-30 | 5-20 hours |
+| 1M+ | 200-500 | 30-50 | 20+ hours |
 
-*Los tiempos dependen del modelo, hardware y configuración de Ollama.
+*Times depend on model, hardware, and Ollama configuration.
 
-### Consejos de Optimización
+### Optimization Tips
 
-1. **Ajustar concurrencia**: Más concurrent tasks = mayor uso de memoria
-2. **Batch size óptimo**: Balance entre memoria y eficiencia de red
-3. **Modelo adecuado**: Modelos más pequeños = generación más rápida
-4. **Recursos del sistema**: Monitor CPU y memoria durante generación
+1. **Adjust concurrency**: More concurrent tasks = higher memory usage
+2. **Optimal batch size**: Balance between memory and network efficiency
+3. **Appropriate model**: Smaller models = faster generation
+4. **System resources**: Monitor CPU and memory during generation
+5. **Custom timeouts**: Use `--timeout` for models requiring longer processing times
 
-## 🐛 Solución de Problemas
+### Model-Specific Optimization
 
-### Errores Comunes
+#### For CPU Execution
+```bash
+# Large models (30B+): Reduced concurrency and increased timeout
+python main.py --model nemotron:latest --concurrent 5 --batch-size 50 --timeout 1800 --cpu-tips
+
+# Medium models (7B-14B): Balanced settings
+python main.py --model llama3.1 --concurrent 15 --batch-size 100 --timeout 300
+
+# Small models: High concurrency
+python main.py --model llama3.1 --concurrent 25 --batch-size 150 --timeout 120
+```
+
+#### For GPU Execution
+```bash
+# High-performance settings for GPU
+python main.py --concurrent 50 --batch-size 500 --timeout 60
+```
+
+## 🧠 Token Context Optimization
+
+The generator automatically detects and optimizes for different model context windows:
+
+| Model Type | Context Window | Optimized Generation |
+|------------|----------------|---------------------|
+| **qwen3-coder** | 1024 tokens | 800 tokens |
+| **nemotron** | 4096 tokens | 1500 tokens |
+| **llama3.1** | 2048 tokens | 1500 tokens |
+| **codellama** | 2048 tokens | 1500 tokens |
+| **mistral** | 4096 tokens | 1500 tokens |
+
+### Token Allocation Strategy
+- **30% for prompts**: Reserved for instructions and context
+- **70% for generation**: Available for content generation
+- **Automatic detection**: Based on model name patterns
+
+## 🐛 Troubleshooting
+
+### Common Errors
 
 #### "Cannot connect to host localhost:11434"
 ```bash
-# Verificar que Ollama esté ejecutándose
+# Verify Ollama is running
 ollama serve
 
-# En otra terminal, probar conexión
+# In another terminal, test connection
 curl http://localhost:11434/api/tags
 ```
 
 #### "Model not found"
 ```bash
-# Listar modelos disponibles
+# List available models
 ollama list
 
-# Descargar el modelo necesario
+# Download the necessary model
 ollama pull llama3.1
+ollama pull nemotron:latest
+```
+
+#### Model name typos (e.g., "nemotron:lastest")
+The system now automatically suggests corrections:
+```
+ERROR - Model 'nemotron:lastest' not found.
+ERROR - Did you mean? nemotron:latest
 ```
 
 #### "Out of memory"
-- Reducir `--concurrent` y `--batch-size`
-- Usar un modelo más pequeño
-- Cerrar otras aplicaciones que consuman memoria
+- Reduce `--concurrent` and `--batch-size`
+- Use a smaller model
+- Increase `--timeout` for CPU processing
+- Close other memory-consuming applications
 
-#### Generación muy lenta
-- Verificar recursos del sistema (CPU, memoria)
-- Usar un modelo más rápido (ej: `llama3.1` vs `llama3.1:70b`)
-- Ajustar parámetros de concurrencia
+#### Very slow generation
+- Check system resources (CPU, memory)
+- Use a faster model (e.g., `llama3.1` vs `llama3.1:70b`)
+- Adjust concurrency parameters
+- Use `--cpu-tips` for model-specific recommendations
 
-#### Problemas con idiomas específicos
-- **Contenido en idioma incorrecto**: Verificar el parámetro `--language`
-- **Mezcla inconsistente**: En modo `mixed`, la alternancia es aleatoria por diseño
-- **Modelos especializados**: Algunos modelos funcionan mejor con idiomas específicos:
-  - `llama3.1`: Excelente para español e inglés
-  - `codellama`: Mejor para código en inglés
-  - `mistral`: Bueno para contenido multilingüe
+#### Timeout issues
+```bash
+# Use custom timeout for slow models or CPU processing
+python main.py --timeout 1800 --model large_model
 
-## 🤝 Contribuciones
+# Check automatic timeout recommendations
+python main.py --cpu-tips --model your_model
+```
 
-Las contribuciones son bienvenidas. Por favor:
+#### Issues with specific languages
+- **Wrong language content**: Verify the `--language` parameter
+- **Inconsistent mixing**: In `mixed` mode, alternation is random by design
+- **Specialized models**: Some models work better with specific languages:
+  - `llama3.1`: Excellent for Spanish and English
+  - `codellama`: Better for English code
+  - `mistral`: Good for multilingual content
+  - `nemotron`: Optimized for English technical content
 
-1. Fork el repositorio
-2. Crea una rama para tu feature (`git checkout -b feature/nueva-funcionalidad`)
-3. Commit tus cambios (`git commit -am 'Add nueva funcionalidad'`)
-4. Push a la rama (`git push origin feature/nueva-funcionalidad`)
-5. Crear un Pull Request
+## 🤝 Contributions
 
-## 📄 Licencia
+Contributions are welcome. Please:
 
-Este proyecto está bajo la Licencia MIT. Ver `LICENSE` para más detalles.
+1. Fork the repository
+2. Create a branch for your feature (`git checkout -b feature/new-functionality`)
+3. Commit your changes (`git commit -am 'Add new functionality'`)
+4. Push to the branch (`git push origin feature/new-functionality`)
+5. Create a Pull Request
 
-## 🔗 Enlaces Útiles
+## 📄 License
+
+This project is under the MIT License. See `LICENSE` for more details.
+
+## 🔗 Useful Links
 
 - [Ollama Official Website](https://ollama.ai)
 - [Ollama Models Library](https://ollama.ai/library)
@@ -308,21 +379,59 @@ Este proyecto está bajo la Licencia MIT. Ver `LICENSE` para más detalles.
 
 ---
 
-## 💡 Tips y Mejores Prácticas
+## 💡 Tips and Best Practices
 
-### Para Datasets Multilingües
-- **Modo mixto**: Ideal para entrenar modelos que necesiten responder en ambos idiomas
-- **Datasets separados**: Para fine-tuning específico por idioma, genera datasets individuales
-- **Verificación de calidad**: Revisa algunos ejemplos para asegurar la calidad del idioma
+### For Multilingual Datasets
+- **Mixed mode**: Ideal for training models that need to respond in both languages
+- **Separate datasets**: For language-specific fine-tuning, generate individual datasets
+- **Quality verification**: Review some examples to ensure language quality
 
-### Para Datasets Masivos
-- **Servidores dedicados**: Para datasets muy grandes, usa un servidor con buena conectividad
-- **Monitoreo continuo**: Las mejoras de progreso te permiten monitorear generaciones largas
-- **Checkpoints**: Los checkpoints automáticos permiten reanudar generaciones interrumpidas
+### For Massive Datasets
+- **Dedicated servers**: For very large datasets, use a server with good connectivity
+- **Continuous monitoring**: Progress improvements allow you to monitor long generations
+- **Checkpoints**: Automatic checkpoints allow resuming interrupted generations
 
-### Para Rendimiento Óptimo
-- **Concurrencia balanceada**: Más concurrent tasks = mayor memoria, pero también mayor velocidad
-- **Batch size apropiado**: Lotes más grandes son más eficientes pero consumen más memoria
-- **Modelo adecuado**: Elige el modelo según el tipo de contenido que necesites
+### For Optimal Performance
+- **Balanced concurrency**: More concurrent tasks = more memory, but also higher speed
+- **Appropriate batch size**: Larger batches are more efficient but consume more memory
+- **Right model**: Choose the model based on the type of content you need
+- **Custom timeouts**: Use `--timeout` for models requiring special processing times
 
-⚡ **Recomendación**: Para datasets de producción, inicia con una prueba pequeña usando `--size 1000` para verificar calidad y rendimiento antes de generar el dataset completo.
+### CPU vs GPU Optimization
+- **CPU execution**: Use lower concurrency and higher timeouts for large models
+- **GPU execution**: Can handle higher concurrency and shorter timeouts
+- **Mixed environments**: Adjust parameters based on your hardware setup
+
+⚡ **Recommendation**: For production datasets, start with a small test using `--size 1000` to verify quality and performance before generating the complete dataset. Use `--cpu-tips` to get model-specific optimization recommendations.
+
+## 🔧 Advanced Usage Examples
+
+### High-Performance Production Setup
+```bash
+# Maximum performance on powerful hardware
+python main.py --size 100000000 --model nemotron:latest --batch-size 1000 --concurrent 100 --language en --timeout 300 --output production_dataset
+```
+
+### CPU-Optimized Setup for Large Models
+```bash
+# Optimized for CPU processing of large models
+python main.py --size 10000000 --model nemotron:latest --batch-size 50 --concurrent 5 --language en --timeout 1800 --cpu-tips
+```
+
+### Multi-Stage Generation
+```bash
+# Stage 1: Generate English content
+python main.py --size 5000000 --language en --output stage1_english
+
+# Stage 2: Generate Spanish content  
+python main.py --size 5000000 --language es --output stage2_spanish
+
+# Stage 3: Consolidate both datasets
+python main.py --consolidate-only --output final_multilingual_dataset
+```
+
+### Quality-Focused Generation
+```bash
+# Lower concurrency for higher quality
+python main.py --size 100000 --batch-size 25 --concurrent 5 --timeout 600 --language en --output high_quality_dataset
+```
