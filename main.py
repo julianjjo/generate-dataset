@@ -32,6 +32,7 @@ class DatasetConfig:
     model_name: str = "llama3.1"
     ollama_url: str = "http://localhost:11434"
     language: str = "es"  # "es" para español, "en" para inglés, "mixed" para ambos
+    max_tokens: Optional[int] = None  # Se calculará automáticamente
     
     def get_optimized_concurrency(self) -> int:
         """Optimiza la concurrencia basada en el tamaño del modelo para CPU"""
@@ -46,6 +47,33 @@ class DatasetConfig:
         # Modelos pequeños
         else:
             return self.max_concurrent
+    
+    def get_model_context_length(self) -> int:
+        """Detecta la longitud de contexto del modelo"""
+        model_lower = self.model_name.lower()
+        
+        # Modelos conocidos con contextos específicos
+        if "qwen" in model_lower and ("coder" in model_lower or "30b" in model_lower):
+            return 1024  # qwen3-coder tiene 1024 tokens
+        elif "codellama" in model_lower:
+            return 2048  # CodeLlama típicamente 2048
+        elif "llama" in model_lower:
+            return 2048  # Llama3.1 típicamente 2048+
+        elif "mistral" in model_lower:
+            return 4096  # Mistral típicamente 4096
+        else:
+            return 2048  # Por defecto conservador
+    
+    def get_optimal_max_tokens(self) -> int:
+        """Calcula tokens óptimos para generación basado en contexto del modelo"""
+        context_length = self.get_model_context_length()
+        
+        # Reservar ~30% para el prompt, 70% para la respuesta
+        prompt_reserve = int(context_length * 0.3)
+        max_response = context_length - prompt_reserve
+        
+        # Nunca exceder límites seguros
+        return min(max_response, 800 if context_length <= 1024 else 1500)
 
 class OllamaClient:
     """Cliente para interactuar con Ollama"""
@@ -100,7 +128,7 @@ class OllamaClient:
             logger.error(f"Error al conectar con Ollama para verificar modelo: {e}")
             return False
     
-    async def generate(self, prompt: str, max_tokens: int = 500, temperature: float = 0.8) -> Optional[str]:
+    async def generate(self, prompt: str, max_tokens: int = 700, temperature: float = 0.8) -> Optional[str]:
         """Genera texto usando Ollama"""
         payload = {
             "model": self.model_name,
@@ -143,222 +171,160 @@ class DatasetPrompts:
     """Plantillas de prompts para diferentes tipos de datasets"""
     
     @staticmethod
-    def get_story_prompt(language: str = "es") -> str:
+    def get_story_prompt(language: str = "es", max_tokens: int = 700) -> str:
+        # Ajustar longitud según tokens disponibles
+        if max_tokens <= 800:
+            word_count = "200-300 palabras"
+            word_count_en = "200-300 words"
+        else:
+            word_count = "400-500 palabras"
+            word_count_en = "400-500 words"
+            
         if language == "en":
-            genres = ["science fiction", "fantasy", "mystery", "romance", "horror", "adventure", "drama"]
-            settings = ["future", "medieval past", "modern city", "space", "enchanted forest", "laboratory"]
+            genres = ["sci-fi", "fantasy", "mystery", "romance", "horror", "adventure"]
+            settings = ["future", "medieval", "city", "space", "forest"]
             
             genre = random.choice(genres)
             setting = random.choice(settings)
             
-            return f"""Write a complete {genre} story set in {setting}. 
-The story should be 300-500 words long, with beginning, development and ending.
-Only respond with the story text, no JSON format or additional tags."""
+            return f"""Write a {genre} story in {setting}. Length: {word_count_en}. Include beginning, middle, end."""
         else:
-            genres = ["ciencia ficción", "fantasía", "misterio", "romance", "terror", "aventura", "drama"]
-            settings = ["futuro", "pasado medieval", "ciudad moderna", "espacio", "bosque encantado", "laboratorio"]
+            genres = ["ciencia ficción", "fantasía", "misterio", "romance", "terror", "aventura"]
+            settings = ["futuro", "medieval", "ciudad", "espacio", "bosque"]
             
             genre = random.choice(genres)
             setting = random.choice(settings)
             
-            return f"""Escribe un cuento completo de {genre} ambientado en {setting}. 
-El cuento debe tener entre 300-500 palabras, con inicio, desarrollo y final.
-Solo responde con el texto del cuento, sin formato JSON ni etiquetas adicionales."""
+            return f"""Escribe un cuento de {genre} en {setting}. Longitud: {word_count}. Incluye inicio, desarrollo y final."""
 
     @staticmethod
-    def get_instruction_prompt(language: str = "es") -> str:
+    def get_instruction_prompt(language: str = "es", max_tokens: int = 700) -> str:
+        word_limit = "150-250 palabras" if max_tokens <= 800 else "200-400 palabras"
+        word_limit_en = "150-250 words" if max_tokens <= 800 else "200-400 words"
+        
         if language == "en":
             tasks = [
-                "explain how to cook pasta carbonara",
-                "teach how to configure a wifi router",
-                "show how to plant a garden",
-                "explain the Pythagorean theorem",
-                "teach how to write a professional CV",
-                "show how to change a tire",
-                "explain how photosynthesis works",
-                "teach basic origami"
+                "cook pasta carbonara", "configure wifi router", "plant a garden",
+                "explain Pythagorean theorem", "write a CV", "change a tire",
+                "explain photosynthesis", "make origami"
             ]
             
             task = random.choice(tasks)
             
-            return f"""Create a complete instruction to {task}.
-Include an introduction, detailed numbered steps, useful tips and a conclusion.
-The text should be clear, educational and at least 200 words long.
-Only respond with the instructional text, no JSON format or additional tags."""
+            return f"""How to {task}. Write clear steps. Length: {word_limit_en}."""
         else:
             tasks = [
-                "explicar cómo cocinar pasta carbonara",
-                "enseñar a configurar un router wifi",
-                "mostrar cómo plantar un jardín",
-                "explicar el teorema de Pitágoras",
-                "enseñar a escribir un CV profesional",
-                "mostrar cómo cambiar una llanta",
-                "explicar cómo funciona la fotosíntesis",
-                "enseñar a hacer origami básico"
+                "cocinar pasta carbonara", "configurar router wifi", "plantar jardín",
+                "explicar teorema Pitágoras", "escribir CV", "cambiar llanta",
+                "explicar fotosíntesis", "hacer origami"
             ]
             
             task = random.choice(tasks)
             
-            return f"""Crea una instrucción completa para {task}.
-Incluye una introducción, pasos detallados numerados, consejos útiles y una conclusión.
-El texto debe ser claro, educativo y de al menos 200 palabras.
-Solo responde con el texto instructivo, sin formato JSON ni etiquetas adicionales."""
+            return f"""Cómo {task}. Escribe pasos claros. Longitud: {word_limit}."""
 
     @staticmethod
-    def get_dialogue_prompt(language: str = "es") -> str:
+    def get_dialogue_prompt(language: str = "es", max_tokens: int = 700) -> str:
+        exchanges = "6-8 intercambios" if max_tokens <= 800 else "8-10 intercambios"
+        exchanges_en = "6-8 exchanges" if max_tokens <= 800 else "8-10 exchanges"
+        
         if language == "en":
             scenarios = [
-                "a job interview",
-                "a discussion between friends about travel plans",
-                "a medical consultation",
-                "a business negotiation",
-                "a class between teacher and student",
-                "a family conversation at dinner"
+                "job interview", "friends planning travel", "medical consultation",
+                "business meeting", "teacher-student", "family dinner"
             ]
             
             scenario = random.choice(scenarios)
             
-            return f"""Write a natural dialogue for {scenario}.
-The dialogue should have at least 8-10 exchanges, be realistic and show different personalities.
-Include brief action descriptions between dialogue lines.
-Only respond with the complete dialogue, no JSON format or additional tags."""
+            return f"""Write dialogue for {scenario}. {exchanges_en}. Be natural."""
         else:
             scenarios = [
-                "una entrevista de trabajo",
-                "una discusión entre amigos sobre planes de viaje",
-                "una consulta médica",
-                "una negociación comercial",
-                "una clase entre profesor y estudiante",
-                "una conversación familiar en la cena"
+                "entrevista trabajo", "amigos planificando viaje", "consulta médica",
+                "reunión negocios", "profesor-estudiante", "cena familiar"
             ]
             
             scenario = random.choice(scenarios)
             
-            return f"""Escribe un diálogo natural para {scenario}.
-El diálogo debe tener al menos 8-10 intercambios, ser realista y mostrar personalidades diferentes.
-Incluye descripciones breves de acciones entre las líneas de diálogo.
-Solo responde with el diálogo completo, sin formato JSON ni etiquetas adicionales."""
+            return f"""Escribe diálogo para {scenario}. {exchanges}. Sé natural."""
 
     @staticmethod
-    def get_article_prompt(language: str = "es") -> str:
+    def get_article_prompt(language: str = "es", max_tokens: int = 700) -> str:
+        length = "250-350 palabras" if max_tokens <= 800 else "400-500 palabras"
+        length_en = "250-350 words" if max_tokens <= 800 else "400-500 words"
+        
         if language == "en":
             topics = [
-                "the benefits of solar energy",
-                "the importance of biodiversity",
-                "how artificial intelligence is changing work",
-                "the history of chocolate",
-                "the effects of climate change on oceans",
-                "the psychology of color in marketing",
-                "the evolution of video games",
-                "the mysteries of deep space"
+                "solar energy benefits", "biodiversity importance", "AI changing work",
+                "chocolate history", "climate change effects", "color psychology",
+                "video game evolution", "space mysteries"
             ]
             
             topic = random.choice(topics)
             
-            return f"""Write an informative article about {topic}.
-The article should be 400-600 words long, with title, introduction, development with subtopics and conclusion.
-Use an educational but accessible tone for the general public.
-Only respond with the complete article, no JSON format or additional tags."""
+            return f"""Write article about {topic}. {length_en}. Educational tone."""
         else:
             topics = [
-                "los beneficios de la energía solar",
-                "la importancia de la biodiversidad",
-                "cómo la inteligencia artificial está cambiando el trabajo",
-                "la historia del chocolate",
-                "los efectos del cambio climático en los océanos",
-                "la psicología del color en el marketing",
-                "la evolución de los videojuegos",
-                "los misterios del espacio profundo"
+                "beneficios energía solar", "importancia biodiversidad", "IA cambiando trabajo",
+                "historia chocolate", "efectos cambio climático", "psicología color",
+                "evolución videojuegos", "misterios espacio"
             ]
             
             topic = random.choice(topics)
             
-            return f"""Escribe un artículo informativo sobre {topic}.
-El artículo debe tener entre 400-600 palabras, con título, introducción, desarrollo con subtemas y conclusión.
-Usa un tono educativo pero accesible para el público general.
-Solo responde con el artículo completo, sin formato JSON ni etiquetas adicionales."""
+            return f"""Escribe artículo sobre {topic}. {length}. Tono educativo."""
 
     @staticmethod
-    def get_code_prompt(language: str = "es") -> str:
-        prog_languages = ["Python", "JavaScript", "Java", "C++", "Go", "Rust"]
+    def get_code_prompt(language: str = "es", max_tokens: int = 700) -> str:
+        prog_languages = ["Python", "JavaScript", "Java", "C++"]
+        complexity = "simple" if max_tokens <= 800 else "completo"
+        complexity_en = "simple" if max_tokens <= 800 else "complete"
         
         if language == "en":
             projects = [
-                "a library management system",
-                "a number guessing game",
-                "a basic calculator",
-                "a simple login system",
-                "a password generator",
-                "a currency converter",
-                "a task organizer",
-                "a text analyzer"
+                "calculator", "number guessing game", "password generator",
+                "currency converter", "task list", "text analyzer"
             ]
             
             prog_language = random.choice(prog_languages)
             project = random.choice(projects)
             
-            return f"""Create complete code in {prog_language} for {project}.
-Include explanatory comments, basic error handling and usage examples.
-The code should be functional and well-structured.
-Only respond with the code and comments, no JSON format or additional tags."""
+            return f"""Write {complexity_en} {prog_language} code for {project}. Include comments."""
         else:
             projects = [
-                "un sistema de gestión de biblioteca",
-                "un juego de adivinanza de números",
-                "un calculadora básica",
-                "un sistema de login simple",
-                "un generador de contraseñas",
-                "un convertidor de monedas",
-                "un organizador de tareas",
-                "un analizador de texto"
+                "calculadora", "juego adivinanza", "generador contraseñas",
+                "convertidor monedas", "lista tareas", "analizador texto"
             ]
             
             prog_language = random.choice(prog_languages)
             project = random.choice(projects)
             
-            return f"""Crea código completo en {prog_language} para {project}.
-Incluye comentarios explicativos, manejo básico de errores y ejemplos de uso.
-El código debe ser funcional y bien estructurado.
-Solo responde con el código y comentarios, sin formato JSON ni etiquetas adicionales."""
+            return f"""Escribe código {complexity} en {prog_language} para {project}. Incluye comentarios."""
 
     @staticmethod
-    def get_essay_prompt(language: str = "es") -> str:
+    def get_essay_prompt(language: str = "es", max_tokens: int = 700) -> str:
+        length = "250-350 palabras" if max_tokens <= 800 else "400-500 palabras"
+        length_en = "250-350 words" if max_tokens <= 800 else "400-500 words"
+        
         if language == "en":
             themes = [
-                "the importance of education in the 21st century",
-                "the impact of social media on human relationships",
-                "ethics in artificial intelligence",
-                "the future of remote work",
-                "environmental conservation",
-                "the influence of music on mood",
-                "the challenges of globalization",
-                "the importance of reading in the digital age"
+                "education importance", "social media impact", "AI ethics",
+                "remote work future", "environmental conservation", "music influence",
+                "globalization challenges", "digital reading"
             ]
             
             theme = random.choice(themes)
             
-            return f"""Write a reflective essay about {theme}.
-The essay should be 400-500 words long, with a clear thesis, solid arguments and examples.
-Use an academic but accessible tone.
-Only respond with the complete essay, no JSON format or additional tags."""
+            return f"""Write essay about {theme}. {length_en}. Academic tone."""
         else:
             themes = [
-                "la importancia de la educación en el siglo XXI",
-                "el impacto de las redes sociales en las relaciones humanas",
-                "la ética en la inteligencia artificial",
-                "el futuro del trabajo remoto",
-                "la conservación del medio ambiente",
-                "la influencia de la música en el estado de ánimo",
-                "los desafíos de la globalización",
-                "la importancia de la lectura en la era digital"
+                "importancia educación", "impacto redes sociales", "ética IA",
+                "futuro trabajo remoto", "conservación ambiental", "influencia música",
+                "desafíos globalización", "lectura digital"
             ]
             
             theme = random.choice(themes)
             
-            return f"""Escribe un ensayo reflexivo sobre {theme}.
-El ensayo debe tener entre 400-500 palabras, con una tesis clara, argumentos sólidos y ejemplos.
-Usa un tono académico pero accesible.
-Solo responde con el ensayo completo, sin formato JSON ni etiquetas adicionales."""
+            return f"""Escribe ensayo sobre {theme}. {length}. Tono académico."""
 
 class DatasetGenerator:
     """Generador principal del dataset"""
@@ -372,12 +338,15 @@ class DatasetGenerator:
         self.current_batch = []
         
     def get_random_prompt(self) -> str:
-        """Obtiene un prompt aleatorio"""
+        """Obtiene un prompt aleatorio optimizado para tokens"""
         # Seleccionar idioma para este prompt
         if self.config.language == "mixed":
             current_lang = random.choice(["es", "en"])
         else:
             current_lang = self.config.language
+        
+        # Obtener tokens óptimos para el modelo
+        max_tokens = self.config.max_tokens or self.config.get_optimal_max_tokens()
             
         prompt_methods = [
             self.prompts.get_story_prompt,
@@ -387,16 +356,19 @@ class DatasetGenerator:
             self.prompts.get_code_prompt,
             self.prompts.get_essay_prompt
         ]
-        return random.choice(prompt_methods)(current_lang)
+        return random.choice(prompt_methods)(current_lang, max_tokens)
     
     async def generate_batch(self, client: OllamaClient, batch_id: int) -> List[Dict[str, Any]]:
         """Genera un lote de ejemplos"""
         batch_results = []
         
+        # Obtener tokens optimizados para este modelo
+        optimal_tokens = self.config.max_tokens or self.config.get_optimal_max_tokens()
+        
         tasks = []
         for _ in range(self.config.batch_size):
             prompt = self.get_random_prompt()
-            tasks.append(client.generate(prompt))
+            tasks.append(client.generate(prompt, max_tokens=optimal_tokens))
         
         results = await asyncio.gather(*tasks, return_exceptions=True)
         
@@ -466,6 +438,11 @@ class DatasetGenerator:
             
             logger.info(f"Conexión con Ollama establecida usando {self.config.model_name}")
             
+            # Configuración optimizada para tokens
+            context_length = self.config.get_model_context_length()
+            optimal_tokens = self.config.max_tokens or self.config.get_optimal_max_tokens()
+            logger.info(f"Contexto del modelo: {context_length} tokens, generación optimizada: {optimal_tokens} tokens")
+            
             # Semáforo para controlar concurrencia optimizada para CPU
             optimized_concurrency = self.config.get_optimized_concurrency()
             logger.info(f"Usando concurrencia optimizada: {optimized_concurrency} tareas simultáneas")
@@ -534,8 +511,16 @@ def show_cpu_optimization_tips(model_name: str):
     """Muestra consejos de optimización para modelos en CPU"""
     model_lower = model_name.lower()
     
+    # Crear config temporal para obtener información del modelo
+    temp_config = DatasetConfig(model_name=model_name)
+    context_length = temp_config.get_model_context_length()
+    optimal_tokens = temp_config.get_optimal_max_tokens()
+    
     print(f"\n🖥️  Recomendaciones para {model_name} en CPU:")
     print("=" * 50)
+    print(f"📏 Contexto del modelo: {context_length} tokens")
+    print(f"⚡ Generación optimizada: {optimal_tokens} tokens")
+    print()
     
     if any(size in model_lower for size in ["30b", "32b", "34b", "70b"]):
         print("📊 Modelo muy grande detectado (30B+)")
