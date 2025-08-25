@@ -577,6 +577,7 @@ def main():
     parser.add_argument("--model", type=str, default="llama3.1", help="Modelo de Ollama a usar")
     parser.add_argument("--language", type=str, default="es", choices=["es", "en", "mixed"], help="Idioma del dataset: es (español), en (inglés), mixed (ambos)")
     parser.add_argument("--consolidate-only", action="store_true", help="Solo consolidar archivos existentes")
+    parser.add_argument("--auto-consolidate", action="store_true", help="Consolidar automáticamente sin preguntar (útil para nohup)")
     parser.add_argument("--lb-tips", action="store_true", help="Muestra consejos de optimización para Load Balancer")
     parser.add_argument("--timeout", type=int, default=None, help="Timeout en segundos para cada generación (automático si no se especifica)")
     
@@ -607,9 +608,17 @@ def main():
         asyncio.run(generator.generate_dataset())
         
         # Consolida al final
-        consolidate = input("¿Consolidar dataset en un solo archivo? (y/N): ")
-        if consolidate.lower() == 'y':
+        if args.auto_consolidate:
+            logger.info("Auto-consolidando dataset...")
             generator.consolidate_dataset()
+        else:
+            try:
+                consolidate = input("¿Consolidar dataset en un solo archivo? (y/N): ")
+                if consolidate.lower() == 'y':
+                    generator.consolidate_dataset()
+            except (EOFError, OSError):
+                # Ejecutándose en nohup o similar, no consolidar por defecto
+                logger.info("Ejecutándose en background, saltando consolidación. Usa --auto-consolidate para consolidar automáticamente.")
 
 if __name__ == "__main__":
     main()

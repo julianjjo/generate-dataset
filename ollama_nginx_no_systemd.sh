@@ -396,7 +396,7 @@ start_with_screen() {
             export OLLAMA_MODELS=/usr/share/ollama/.ollama/models
             export OLLAMA_NUM_PARALLEL=1
             cd /usr/share/ollama
-            sudo -u ollama /usr/local/bin/ollama serve 2>&1 | tee $OLLAMA_LOG_DIR/instance-$instance_num.log
+            ollama /usr/local/bin/ollama serve 2>&1 | tee $OLLAMA_LOG_DIR/instance-$instance_num.log
         "
         
         sleep 2
@@ -604,7 +604,7 @@ EOF
         export OLLAMA_MODELS=/usr/share/ollama/.ollama/models
         export OLLAMA_NUM_PARALLEL=1
         cd /usr/share/ollama
-        sudo -u ollama /usr/local/bin/ollama serve 2>&1 | tee $OLLAMA_LOG_DIR/instance-$instance_num.log
+        ollama /usr/local/bin/ollama serve 2>&1 | tee $OLLAMA_LOG_DIR/instance-$instance_num.log
     "
 EOF
     done
