@@ -30,24 +30,16 @@ class DatasetConfig:
     output_dir: str = "generated_dataset"
     checkpoint_interval: int = 10000
     model_name: str = "llama3.1"
-    ollama_url: str = "http://localhost:11434"
+    ollama_url: str = "http://localhost"  # Load balancer puerto 80
     language: str = "es"  # "es" para español, "en" para inglés, "mixed" para ambos
     max_tokens: Optional[int] = None  # Se calculará automáticamente
     timeout: Optional[int] = None  # Timeout en segundos, se calculará automáticamente si es None
     
     def get_optimized_concurrency(self) -> int:
-        """Optimiza la concurrencia basada en el tamaño del modelo para CPU"""
-        model_lower = self.model_name.lower()
-        
-        # Modelos muy grandes en CPU: reducir concurrencia para evitar saturar RAM
-        if any(size in model_lower for size in ["30b", "32b", "34b", "70b"]):
-            return min(self.max_concurrent, 5)  # Máximo 5 tareas concurrentes
-        # Modelos medianos
-        elif any(size in model_lower for size in ["7b", "8b", "13b", "14b"]):
-            return min(self.max_concurrent, 10)  # Máximo 10 tareas concurrentes
-        # Modelos pequeños
-        else:
-            return self.max_concurrent
+        """Concurrencia optimizada para load balancer con múltiples GPUs"""
+        # Con load balancer, las GPUs se distribuyen automáticamente
+        # No hay limitación por tamaño del modelo individual
+        return self.max_concurrent
     
     def get_model_context_length(self) -> int:
         """Detecta la longitud de contexto del modelo"""
@@ -88,23 +80,13 @@ class OllamaClient:
         self.session = None
         
     def _get_timeout_for_model(self) -> int:
-        """Calcula timeout dinámico basado en el tamaño del modelo o usa el timeout personalizado"""
+        """Timeout para load balancer con múltiples GPUs"""
         # Si hay timeout personalizado, usarlo
         if self.timeout is not None:
             return self.timeout
-            
-        # Sino, calcular automáticamente
-        model_lower = self.model_name.lower()
         
-        # Modelos muy grandes (30B+) en CPU
-        if any(size in model_lower for size in ["30b", "32b", "34b", "70b"]):
-            return 600  # 10 minutos para modelos grandes en CPU
-        # Modelos medianos (7B-13B)
-        elif any(size in model_lower for size in ["7b", "8b", "13b", "14b"]):
-            return 180  # 3 minutos
-        # Modelos pequeños
-        else:
-            return 120  # 2 minutos por defecto
+        # Con load balancer y múltiples GPUs, timeout más agresivo
+        return 90  # 1.5 minutos - el load balancer distribuye la carga
         
     async def __aenter__(self):
         # Timeout dinámico basado en el tamaño del modelo
@@ -121,6 +103,16 @@ class OllamaClient:
     async def __aexit__(self, exc_type, exc_val, exc_tb):
         if self.session:
             await self.session.close()
+    
+    async def verify_load_balancer(self) -> bool:
+        """Verifica que el load balancer esté funcionando"""
+        try:
+            async with self.session.get(f"{self.base_url}/health") as response:
+                if response.status == 200:
+                    return True
+            return False
+        except Exception:
+            return False
     
     async def verify_model(self) -> bool:
         """Verifica que el modelo existe en Ollama y sugiere alternativas"""
@@ -452,6 +444,11 @@ class DatasetGenerator:
         total_batches = (self.config.target_size + self.config.batch_size - 1) // self.config.batch_size
         
         async with OllamaClient(self.config.ollama_url, self.config.model_name, self.config.timeout) as client:
+            # Verificar que el load balancer está funcionando
+            if not await client.verify_load_balancer():
+                logger.error(f"Load balancer no disponible en {self.config.ollama_url}. Ejecuta el script ollama_nginx_no_systemd.sh primero")
+                return
+                
             # Verificar que el modelo existe
             if not await client.verify_model():
                 logger.error(f"Modelo '{self.config.model_name}' no encontrado. Usa 'ollama pull {self.config.model_name}' para descargarlo")
@@ -536,49 +533,37 @@ class DatasetGenerator:
         logger.info(f"  - Tamaño: {file_size:.2f} GB")
 
 def show_cpu_optimization_tips(model_name: str):
-    """Muestra consejos de optimización para modelos en CPU"""
-    model_lower = model_name.lower()
-    
+    """Muestra consejos de optimización para load balancer con múltiples GPUs"""
     # Crear config temporal para obtener información del modelo
     temp_config = DatasetConfig(model_name=model_name)
     context_length = temp_config.get_model_context_length()
     optimal_tokens = temp_config.get_optimal_max_tokens()
     
-    print(f"\n🖥️  Recomendaciones para {model_name} en CPU:")
-    print("=" * 50)
+    print(f"\n🚀 Recomendaciones para {model_name} con Load Balancer:")
+    print("=" * 60)
     print(f"📏 Contexto del modelo: {context_length} tokens")
     print(f"⚡ Generación optimizada: {optimal_tokens} tokens")
     print()
     
-    if any(size in model_lower for size in ["30b", "32b", "34b", "70b"]):
-        print("📊 Modelo muy grande detectado (30B+)")
-        print("💡 Configuración recomendada:")
-        print("   --concurrent 3-5    (Reducir concurrencia)")
-        print("   --batch-size 25-50  (Lotes más pequeños)")
-        print(f"   Ejemplo: python main.py --model {model_name} --concurrent 3 --batch-size 25 --size 1000")
-        print("\n⚡ Tips adicionales:")
-        print("   • Cierra otras aplicaciones para liberar RAM")
-        print("   • Usa OLLAMA_NUM_PARALLEL=1 para limitar instancias")
-        print("   • Considera usar un modelo más pequeño para mayor velocidad")
-        
-    elif any(size in model_lower for size in ["7b", "8b", "13b", "14b"]):
-        print("📊 Modelo mediano detectado (7B-14B)")
-        print("💡 Configuración recomendada:")
-        print("   --concurrent 5-10   (Concurrencia moderada)")
-        print("   --batch-size 50-100 (Lotes estándar)")
-        print(f"   Ejemplo: python main.py --model {model_name} --concurrent 8 --batch-size 75 --size 10000")
-        
-    else:
-        print("📊 Modelo pequeño/estándar detectado")
-        print("💡 Configuración recomendada:")
-        print("   --concurrent 10-20  (Concurrencia alta)")
-        print("   --batch-size 100+   (Lotes grandes)")
-        print(f"   Ejemplo: python main.py --model {model_name} --concurrent 15 --batch-size 100 --size 50000")
+    print("🎯 Configuración recomendada con Load Balancer:")
+    print("   • El load balancer distribuye automáticamente entre GPUs")
+    print("   • No hay limitaciones por tamaño del modelo individual")
+    print("   • Puedes usar concurrencia alta sin problemas de RAM")
+    print()
+    print("💡 Configuración sugerida:")
+    print("   --concurrent 20-50   (Alta concurrencia)")
+    print("   --batch-size 100-200 (Lotes grandes)")
+    print(f"   Ejemplo: python main.py --model {model_name} --concurrent 30 --batch-size 150 --size 100000")
+    print()
+    print("🔧 Requisitos previos:")
+    print("   1. Ejecutar: sudo ./ollama_nginx_no_systemd.sh")
+    print("   2. Verificar que múltiples instancias estén corriendo")
+    print("   3. Verificar nginx load balancer en puerto 80")
     
     # Crear cliente temporal para obtener timeout
     temp_client = OllamaClient(model_name=model_name)
     auto_timeout = temp_client._get_timeout_for_model()
-    print(f"\n⏱️  Timeout automático: {auto_timeout} segundos")
+    print(f"\n⏱️  Timeout con load balancer: {auto_timeout} segundos")
     print(f"    Usar --timeout X para personalizar")
     print()
 
@@ -588,17 +573,17 @@ def main():
     parser.add_argument("--batch-size", type=int, default=100, help="Tamaño del lote")
     parser.add_argument("--concurrent", type=int, default=20, help="Máximo de tareas concurrentes")
     parser.add_argument("--output", type=str, default="generated_dataset", help="Directorio de salida")
-    parser.add_argument("--ollama-url", type=str, default="http://localhost:11434", help="URL de Ollama")
+    parser.add_argument("--ollama-url", type=str, default="http://localhost", help="URL del load balancer de Ollama")
     parser.add_argument("--model", type=str, default="llama3.1", help="Modelo de Ollama a usar")
     parser.add_argument("--language", type=str, default="es", choices=["es", "en", "mixed"], help="Idioma del dataset: es (español), en (inglés), mixed (ambos)")
     parser.add_argument("--consolidate-only", action="store_true", help="Solo consolidar archivos existentes")
-    parser.add_argument("--cpu-tips", action="store_true", help="Muestra consejos de optimización para CPU")
+    parser.add_argument("--lb-tips", action="store_true", help="Muestra consejos de optimización para Load Balancer")
     parser.add_argument("--timeout", type=int, default=None, help="Timeout en segundos para cada generación (automático si no se especifica)")
     
     args = parser.parse_args()
     
-    # Mostrar tips de optimización para CPU si se solicita
-    if args.cpu_tips:
+    # Mostrar tips de optimización para Load Balancer si se solicita
+    if args.lb_tips:
         show_cpu_optimization_tips(args.model)
         return
     
