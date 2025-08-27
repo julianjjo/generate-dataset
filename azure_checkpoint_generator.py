@@ -845,7 +845,7 @@ class CheckpointDatasetGenerator:
         progress_pct = (self.generated_count / self.config.target_size) * 100
         remaining_time = self.checkpoint_manager.estimate_remaining_time(self.generated_count, self.config.target_size)
         
-        logger.info(f"💾 Lote {batch_id + 1} guardado: {len(batch_data)} elementos")
+        logger.info(f"💾 Lote {batch_id + 1} guardado: {len(batch_data)} elementos → {filename}")
         logger.info(f"📊 Total: {self.generated_count:,}/{self.config.target_size:,} ({progress_pct:.1f}%)")
         logger.info(f"⏰ Tiempo restante: {remaining_time:.1f}h")
         
@@ -883,18 +883,32 @@ class CheckpointDatasetGenerator:
             logger.error("❌ Variable AZURE_AI_API_KEY no encontrada")
             return
         
-        # Cargar checkpoint
-        start_count, start_batch, _ = self.checkpoint_manager.load_checkpoint()
-        self.generated_count = start_count
+        # Cargar checkpoint y verificar archivos reales
+        checkpoint_count, checkpoint_batch, _ = self.checkpoint_manager.load_checkpoint()
         
-        total_batches = (self.config.target_size + self.config.batch_size - 1) // self.config.batch_size
+        # Contar archivos reales para sincronizar correctamente
+        real_count, real_batches = self.checkpoint_manager.count_existing_files()
         
-        if start_count > 0:
-            logger.info(f"🔄 REANUDANDO desde {start_count:,} ejemplos (lote {start_batch + 1})")
+        if real_count > 0:
+            # Usar los archivos reales como fuente de verdad
+            self.generated_count = real_count
+            start_batch = real_batches  # El siguiente batch a crear
+            
+            logger.info(f"🔄 REANUDANDO desde archivos reales:")
+            logger.info(f"   📊 Elementos reales: {real_count:,} (en {real_batches} archivos)")
+            logger.info(f"   📋 Siguiente batch: {start_batch} (archivo: batch_{start_batch:06d}.jsonl)")
+            
+            if checkpoint_count != real_count:
+                logger.warning(f"⚠️ Checkpoint desincronizado! Checkpoint: {checkpoint_count:,}, Real: {real_count:,}")
+                logger.info(f"   🔧 Usando archivos reales como fuente de verdad")
         else:
+            self.generated_count = 0
+            start_batch = 0
             logger.info(f"🆕 Comenzando desde cero")
             # Checkpoint inicial
             self.checkpoint_manager.save_checkpoint(0, 0, self.config, {"reason": "start"})
+        
+        total_batches = (self.config.target_size + self.config.batch_size - 1) // self.config.batch_size
         
         async with ConservativeAzureClient(self.config.azure_endpoint, api_key, self.config.model_name, self.config) as client:
             # Test de conexión con grok-3-mini (formato chat)
